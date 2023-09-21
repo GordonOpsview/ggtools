@@ -8,7 +8,7 @@ git add .
 git commit -m "build at $(date)" && git push
 
 echo
-echo "\nThe ggtools are:"
+echo "The ggtools are:"
 cat list | sed 's/^/ * /g'
 echo
 echo "To install: \"curl https://raw.githubusercontent.com/GordonOpsview/ggtools/main/install.sh | sudo bash -s --\""
