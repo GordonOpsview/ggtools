@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-# tmpdir=$(mktemp -d /tmp/XXXXXXX)
-
-for item in $(curl https://raw.githubusercontent.com/GordonOpsview/ggtools/main/list 2>/dev/null); do
-  echo "${item}"
+for ggtool in $(curl https://raw.githubusercontent.com/GordonOpsview/ggtools/main/list 2>/dev/null); do
+  curl -sS -o "/usr/bin/$ggtool" https://raw.githubusercontent.com/GordonOpsview/ggtools/main/$ggtool && chmod +x "/usr/bin/$ggtool"
 done
-
-  # curl -o "$tmpdir/$1" https://raw.githubusercontent.com/GordonOpsview/ggtools/main/$1 2>/dev/null
-
-# rm -rf $tmpdir
