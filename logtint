@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+## ggtool logtint
+
+#Name,         Colour,         Regex
+while read -r line ; do
+  colour=$(echo $line | cut -d, -f2 | sed 's/^ *//g')
+  regex=$(echo $line | cut -d, -f3-99 | sed 's/^ *//g')
+  [[ -n $regex ]] && sedstr="$sedstr; s%(${regex})%"$'\e'"[${colour}m\1"$'\e'"[0m%g"
+done <<< '
+Error,         1;31,           \[(ERR|ERROR|CRITICAL|FATAL)\]
+Warning,       1;33,           \[(WARN|WARNING)\]
+Info,          1;36,           \[(INFO|NOTICE)\]
+Debug,         1;34,           \[DEBUG\]
+Opsview,       0;35,           opsview\.[a-z.]*
+Braces,        0;32,           [\{\}]
+Paths,         2;33,           \/[A-Za-z_\.\/]*\/[A-Za-z0-9_\.\/]*
+Date,          0;3;97,         (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *[0-9]{1,2}
+Date,          0;3;97,         20[0-9][0-9][\/\-][01][0-9][\/\-][0-3][0-9]
+Time,          0;3;97,         [0-2][0-9]:[0-6][0-9]:[0-6][0-9]
+IP,            1;91,           [12]?[0-9]?[0-9]\.[12]?[0-9]?[0-9]\.[12]?[0-9]?[0-9]\.[12]?[0-9]?[0-9]
+UUID,          0;36,           [A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}
+'
+sedstr=${sedstr#; }
+
+sed -E "s/^/\n/g; s/#012/\n/g; $sedstr"
+
