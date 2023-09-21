@@ -14,7 +14,7 @@ echo -ne "\e[0m"
 
 echo
 echo "The ggtools are:"
-cat list | sed 's/^/ $'\e'[1;35m*$'\e'[0m /g'
+cat list | sed "s/^/ "$'\e'"[1;35m*"$'\e'"[0m /g"
 echo
 echo "To install: \"curl -s https://raw.githubusercontent.com/GordonOpsview/ggtools/main/install.sh | sudo bash -s --\""
 echo
