@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+## ggtool ansiblog
+
 function tint () {
   sed -E 's/(^COMMAND.*$)/'$'\e''[1;30;105m\1'$'\e''[0m/g;
           s/^[0-9-]*.*n=ansible \|/'$'\e''[0m/g;

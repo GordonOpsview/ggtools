@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+## ggtool logstat
+
 regex='\bopsview\.[a-z]*'
 
 while [[ $# > 0 ]]; do
