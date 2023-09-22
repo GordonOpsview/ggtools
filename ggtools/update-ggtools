@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+## ggtool update-ggtools
+
+curl -s https://raw.githubusercontent.com/GordonOpsview/ggtools/main/install.sh | sudo bash -s --
+echo "ggtools updated."
