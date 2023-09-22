@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+## ggtool uninstall-ggtools
+
+if [[ "${0}" == "/usr/bin/uninstall-ggtools" ]]; then
+  grep -Ir '#.*ggtool' /usr/bin/ | cut -d: -f1 | grep -v $0 | xargs -I% -P1 echo rm -f %
+fi
+echo rm -f $0
