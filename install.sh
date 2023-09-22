@@ -5,3 +5,4 @@ for ggtool in $(curl https://raw.githubusercontent.com/GordonOpsview/ggtools/mai
     curl -sS -o "/usr/bin/$ggtool" https://raw.githubusercontent.com/GordonOpsview/ggtools/main/ggtools/$ggtool && chmod +x "/usr/bin/$ggtool"
   fi
 done
+echo "ggtools installed."
