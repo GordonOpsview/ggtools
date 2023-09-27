@@ -33,12 +33,12 @@ else
 fi
 
 function row () {
-  tot=$(cat $tempfile | grep -Ic "$1" 2>/dev/null)
-  err=$(cat $tempfile | grep -I "$1" 2>/dev/null | grep -EIc '\[(ERR|ERROR)\]' )
-  warn=$(cat $tempfile | grep -I "$1" 2>/dev/null | grep -EIc '\[(WARN|WARNING)\]' )
-  info=$(cat $tempfile | grep -I "$1" 2>/dev/null | grep -EIc '\[(INFO|NOTICE)\]' )
-  debug=$(cat $tempfile | grep -I "$1" 2>/dev/null | grep -EIc '\[DEBUG\]' )
-  other=$(cat $tempfile | grep -I "$1" 2>/dev/null | grep -EIvc '\[(DEBUG|ERR|ERROR|WARN|WARNING|INFO|NOTICE)\]' )
+  tot=$(cat $tempfile | grep -EIc "$1" 2>/dev/null)
+  err=$(cat $tempfile | grep -EI "$1" 2>/dev/null | grep -EIc '\[(ERR|ERROR)\]' )
+  warn=$(cat $tempfile | grep -EI "$1" 2>/dev/null | grep -EIc '\[(WARN|WARNING)\]' )
+  info=$(cat $tempfile | grep -EI "$1" 2>/dev/null | grep -EIc '\[(INFO|NOTICE)\]' )
+  debug=$(cat $tempfile | grep -EI "$1" 2>/dev/null | grep -EIc '\[DEBUG\]' )
+  other=$(cat $tempfile | grep -EI "$1" 2>/dev/null | grep -EIvc '\[(DEBUG|ERR|ERROR|WARN|WARNING|INFO|NOTICE)\]' )
   echo -e "\e[1;91m$err\e[0m,\e[1;33m$warn\e[0m,$info,\e[34m$debug\e[0m,\e[2m$other\e[0m,\e[1m$tot\e[0m"
 }
 
