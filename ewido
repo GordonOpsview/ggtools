@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+## ggtool ewido
+
+# default = EWIdO
+
+function split () {
+  echo $1 | sed -E 's/(.)/\1 /g'
+}
+
+other=false
+for letter in $(split $1); do
+  case "${letter}" in
+    e ) grepex="${grepex}|ERR|ERROR" ;;
+    w ) grepex="${grepex}|WARN|WARNING" ;;
+    i ) grepex="${grepex}|INFO|NOTICE" ;;
+    d ) grepex="${grepex}|DEBUG" ;;
+    E ) grepin="${grepin}|ERR|ERROR" ;;
+    W ) grepin="${grepin}|WARN|WARNING" ;;
+    I ) grepin="${grepin}|INFO|NOTICE" ;;
+    D ) grepin="${grepin}|DEBUG" ;;
+    O ) other=true ;;
+    *) ;;
+  esac
+done
+grepex="\[(${grepex#|})\]"
+grepin="\[(${grepin#|})\]"
+
+$other && grep -Ev "$grepex" || grep -E "$grepin"
