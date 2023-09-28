@@ -4,6 +4,8 @@
 
 regex='\bopsview\.[a-z]*' # Default regex - selects Opsview components
 
+echo | column -R &>/dev/null && align="-R 2,3,4,5,6,7" # Because some versions of column lack the -R flag
+
 while [[ $# > 0 ]]; do
   case "${1,,}" in
     -r | --regex   ) shift; regex="$1" ;;
@@ -57,6 +59,6 @@ function row () {
   done
   echo -n "(No Match),"
   row $regex -v
-} | column -s, -t -R 2,3,4,5,6,7
+} | column -s, -t $align
 
 rm -f $tempfile
