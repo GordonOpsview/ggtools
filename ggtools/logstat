@@ -47,11 +47,11 @@ function row () {
   IFS=$'\n'
   matches=$(cat $tempfile | grep -EIo "$regex" 2>/dev/null | sort | uniq)
     for dot in $matches; do
-    echo -n "_" >&2
+    echo -n "□" >&2
   done
   echo -en "\e[1G" >&2
     for match in $matches; do
-    echo -n '.' >&2
+    echo -n '■' >&2
     echo -n "$match,"
     row $match
   done
