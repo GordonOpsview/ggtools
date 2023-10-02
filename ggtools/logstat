@@ -41,11 +41,11 @@ function row () {
   info=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc '\[(INFO|NOTICE)\]' )
   debug=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc '\[DEBUG\]' )
   other=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIvc '\[(DEBUG|ERR|ERROR|WARN|WARNING|INFO|NOTICE)\]' )
-  echo -e "\e[1;91m$err\e[0m,\e[1;33m$warn\e[0m,$info,\e[34m$debug\e[0m,\e[2m$other\e[0m,\e[1m$tot\e[0m"
+  echo -e "\e[1;91m$err\e[0m¬\e[1;33m$warn\e[0m¬$info¬\e[34m$debug\e[0m¬\e[2m$other\e[0m¬\e[1m$tot\e[0m"
 }
 
 {
-  echo -e "\e[1G\e[1mGrouping,Error,Warning,Info,Debug,Other,Total\e[0m"
+  echo -e "\e[1G\e[1mGrouping¬Error¬Warning¬Info¬Debug¬Other¬Total\e[0m"
   IFS=$'\n'
   matches=$(cat $tempfile | grep -EIo "$regex" 2>/dev/null | sort | uniq)
     for dot in $matches; do
@@ -54,11 +54,11 @@ function row () {
   echo -en "\e[1G" >&2
     for match in $matches; do
     echo -n '■' >&2
-    echo -n "$match,"
+    echo -n "$match¬"
     row $match
   done
-  echo -n "(No Match),"
+  echo -n "(No Match)¬"
   row $regex -v
-} | column -s, -t $align
+} | column -s¬ -t $align
 
 rm -f $tempfile
