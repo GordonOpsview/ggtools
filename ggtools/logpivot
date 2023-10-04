@@ -35,11 +35,6 @@ else
   cat $logfiles > $tempfile
 fi
 
-# DEBUG
-
-echo "rowregex = $rowregex"
-echo "colregex = $colregex"
-exit
 {
   IFS=$'\n'
   rowmatches=( $(cat $tempfile | grep -EIo "$rowregex" 2>/dev/null | sort | uniq) )
