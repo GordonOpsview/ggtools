@@ -16,5 +16,5 @@ echo
 echo "The ggtools are:"
 cat list | sed "s/^/"$'\e'"[1;35m * "$'\e'"[0m/g"
 echo
-echo "To install: \"curl -s https://raw.githubusercontent.com/GordonOpsview/ggtools/main/install.sh | sudo bash -s --\""
+echo "To install: \"curl -sL https://tinyurl.com/installggtools | sudo bash -s --\""
 echo

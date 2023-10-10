@@ -26,4 +26,4 @@ done
 grepex="\[(${grepex#|})\]"
 grepin="\[(${grepin#|})\]"
 
-$other && grep -Ev "$grepex" || grep -E "$grepin"
+$other && grep --color=always -Ev "$grepex" || grep --color=always -E "$grepin"
