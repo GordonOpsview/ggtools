@@ -6,6 +6,7 @@ regex='\bopsview\.[a-z]*' # Default regex - selects Opsview components
 
 echo | column -t -R 1 &>/dev/null && align="-R 2,3,4,5,6,7" # Because some versions of column lack the -R flag
 
+[[ $1 == '-i' ]] && shift && i='i'
 [[ $# -gt 0 ]] && regex="$1"
 
 # Macros 
@@ -23,19 +24,19 @@ else
 fi
 
 function row () {
-  tot=$(cat $tempfile | grep $2 -EIc "$1" 2>/dev/null)
-  err=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc '\[(ERR|ERROR)\]' )
-  warn=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc '\[(WARN|WARNING)\]' )
-  info=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc '\[(INFO|NOTICE)\]' )
-  debug=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc '\[DEBUG\]' )
-  other=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIvc '\[(DEBUG|ERR|ERROR|WARN|WARNING|INFO|NOTICE)\]' )
+  tot=$(cat $tempfile | grep $2 -EI${i}c "$1" 2>/dev/null)
+  err=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(ERR|ERROR)\]' )
+  warn=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(WARN|WARNING)\]' )
+  info=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(INFO|NOTICE)\]' )
+  debug=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[DEBUG\]' )
+  other=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}vc '\[(DEBUG|ERR|ERROR|WARN|WARNING|INFO|NOTICE)\]' )
   echo -e "\e[1;91m$err\e[0m¬\e[1;33m$warn\e[0m¬$info¬\e[34m$debug\e[0m¬\e[2m$other\e[0m¬\e[1m$tot\e[0m"
 }
 
 {
   echo -e "\e[1G\e[1mGrouping¬Error¬Warning¬Info¬Debug¬Other¬Total\e[0m"
   IFS=$'\n'
-  matches=$(cat $tempfile | grep -EIo "$regex" 2>/dev/null | sort | uniq)
+  matches=$(cat $tempfile | grep -EI${i}o "$regex" 2>/dev/null | sort | uniq)
     for dot in $matches; do
     echo -n "□" >&2
   done
