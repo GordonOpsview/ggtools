@@ -13,7 +13,7 @@ git commit -m "build at $(date)" && git push
 echo -ne "\e[0m"
 
 #
-cp -f $HOME/Code/ggtools/ggtools /var/www/html/ggtools/ggtools
+cp -rf $HOME/Code/ggtools/ggtools /var/www/html/ggtools/ggtools
 cp -f $HOME/Code/ggtools/install.sh /var/www/html/ggtools/install.sh
 cp -f $HOME/Code/ggtools/list /var/www/html/ggtools/list
 sed -i 's|^baseurl=.*$|baseurl="http://127.0.0.1:10080/ggtools/"|g' /var/www/html/ggtools/install.sh
