@@ -40,7 +40,7 @@ function row () {
   if [[ -n $regex ]]; then
     matches=$(cat $tempfile | grep -EI${i}o "$regex" 2>/dev/null | sort | uniq)
   else
-    matches=$(cat $tempfile | awk '{print $5}' 2>/dev/null | sort | uniq)
+    matches=$(cat $tempfile | awk '{print $5}' 2>/dev/null | sed -E 's/\[[0-9]*\]//g' | sort | uniq)
   fi
   for dot in $matches; do
     echo -n "□" >&2
