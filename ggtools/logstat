@@ -26,16 +26,16 @@ fi
 
 function row () {
   tot=$(cat $tempfile | grep $2 -EI${i}c "$1" 2>/dev/null)
-  err=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(ERR|ERROR)\]' )
+  err=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(ERR|ERROR|FATAL|CRIT|CRITICAL)\]' )
   warn=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(WARN|WARNING)\]' )
   info=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[(INFO|NOTICE)\]' )
   debug=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}c '\[DEBUG\]' )
-  other=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}vc '\[(DEBUG|ERR|ERROR|WARN|WARNING|INFO|NOTICE)\]' )
+  other=$(cat $tempfile | grep $2 -EI${i} "$1" 2>/dev/null | grep -EI${i}vc '\[(DEBUG|ERR|ERROR|FATAL|CRIT|CRITICAL|WARN|WARNING|INFO|NOTICE)\]' )
   echo -e "\e[1;91m$err\e[0m¬\e[1;33m$warn\e[0m¬$info¬\e[34m$debug\e[0m¬\e[2m$other\e[0m¬\e[1m$tot\e[0m"
 }
 
 {
-  echo -e "\e[1G\e[1mGrouping¬Error¬Warning¬Info¬Debug¬Other¬Total\e[0m"
+  echo -e "\e[1G\e[1mSearch Term¬Error¬Warning¬Info¬Debug¬Other¬Total\e[0m"
   IFS=$'\n'
   if [[ -n $regex ]]; then
     matches=$(cat $tempfile | grep -EI${i}o "$regex" 2>/dev/null | sort | uniq)
