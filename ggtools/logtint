@@ -13,6 +13,7 @@ Warning,       1;33,           \[(WARN|WARNING)\]
 Info,          1;36,           \[(INFO|NOTICE)\]
 Debug,         1;34,           \[DEBUG\]
 Opsview,       0;35,           opsview\.[a-z.]*
+Info,          1;36,           http[a-zA-Z0-9\/:.]
 Braces,        0;32,           [\{\}]
 Paths,         2;33,           \/[A-Za-z_\.\/]*\/[A-Za-z0-9_\.\/-]*
 Date,          0;3;97,         (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *[0-9]{1,2}
