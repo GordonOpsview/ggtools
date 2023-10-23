@@ -2,8 +2,6 @@
 
 ## ggtool logstat
 
-# regex='\bopsview\.[a-z]*' # Default regex - selects Opsview components
-
 echo | column -t -R 1 &>/dev/null && align="-R 2,3,4,5,6,7" # Because some versions of column lack the -R flag
 
 [[ $1 == '-i' ]] && shift && i='i'
