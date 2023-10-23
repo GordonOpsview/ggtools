@@ -48,7 +48,7 @@ fi
   for header in "${colmatches[@]}"; do
     echo -n "¬${header:(-10):10}"
     # header="$(echo -n $header | grep -o $headerfilter)"
-    echo -n "¬${header}"
+    # echo -n "¬${header}"
   done
   echo -e "¬(No Match)\e[0m"
   echo -en "\e[1G" >&2
