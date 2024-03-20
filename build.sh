@@ -16,7 +16,7 @@ echo -ne "\e[0m"
 cp -rf $HOME/Code/ggtools/ggtools /var/www/html/ggtools/
 cp -f $HOME/Code/ggtools/install.sh /var/www/html/ggtools/install.sh
 cp -f $HOME/Code/ggtools/list /var/www/html/ggtools/list
-sed -i 's|^baseurl=.*$|baseurl="http://127.0.0.1:10080/ggtools/"|g' /var/www/html/ggtools/install.sh
+sed -i 's|^baseurl=.*$|baseurl="http://127.0.0.1:10080/ggtools/"|g; s|/usr/bin/|/tmp/|g' /var/www/html/ggtools/install.sh
 
 echo
 echo "The ggtools are:"

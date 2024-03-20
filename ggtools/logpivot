@@ -16,6 +16,7 @@ function macro () {
 
 function row () {
   # echo -en "\e[1m$1\e[0m¬"
+  IFS=
   for colmatch in "${colmatches[@]}"; do
     cell=$(cat $tempfile | grep $2 -EI "$1" 2>/dev/null | grep -EIc "$colmatch")
     echo -n "$cell¬"
@@ -41,14 +42,19 @@ fi
   IFS=$'\n'
   rowmatches=( $(cat $tempfile | grep -EIo "$rowregex" 2>/dev/null | sort | uniq) )
   colmatches=( $(cat $tempfile | grep -EIo "$colregex" 2>/dev/null | sort | uniq) )
+  # echo BADGER >&2
+  # echo "${rowmatches[@]}" >&2
+  # echo MONKEY >&2
+  # echo "${colmatches[@]}" >&2
+  # echo WEASEL >&2
   for dot in "${rowmatches[@]}"; do
     echo -n "□" >&2
   done
   echo -en "\e[1G\e[1m --- "
   for header in "${colmatches[@]}"; do
-    echo -n "¬${header:(-10):10}"
+    # echo -n "¬${header:(-10):10}"
     # header="$(echo -n $header | grep -o $headerfilter)"
-    # echo -n "¬${header}"
+    echo -n "¬${header}"
   done
   echo -e "¬(No Match)\e[0m"
   echo -en "\e[1G" >&2

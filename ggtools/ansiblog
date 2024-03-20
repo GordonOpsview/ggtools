@@ -24,8 +24,8 @@ function filter () {
 }
 
 case "${1}" in
-  -vvv ) tint ;;
-  -vv ) filter 1 | tint ;;
-  -v ) filter 2 | tint ;;
-  * ) filter 3 | tint ;;
+  -sss | summary3 ) filter 3 | tint ;;
+  -ss | summary2 ) filter 2 | tint ;;
+  -s | summary ) filter 1 | tint ;;
+  * ) tint ;;
 esac
