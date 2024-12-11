@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+## ggtool loguniq
+
+cut -c 17- | sed 's/<[0-9]*>/<XXXX>/g; s/\[[0-9]*\]/[XXXX]/g' | sort | uniq -c | sort -n
