@@ -1,0 +1,205 @@
+#! /bin/bash
+
+## ggtool logplot
+
+declare -A status_regex
+status_regex[err]='\[(ERR|ERROR|CRITICAL|FATAL)\]'
+status_regex[warn]='\[(WARN|WARNING)\]'
+status_regex[info]='\[(INFO|NOTICE)\]'
+status_regex[debug]='\[DEBUG\]'
+status_regex[custom]=''
+status_regex[other]='x'
+
+greptool='egrep'
+# greptool='rg'
+
+width=100
+datemask='xx:xx:xx'
+count=no
+timemask=':xx:xx' # default 1hr
+
+i=''
+# creg='ᚢᚾᛗᚨᛏᚲᚻᚨᛒᛚᛖ' # practically unmatchable in any realistic case
+
+declare -A colours
+colours[err]='red'
+colours[warn]='yellow'
+colours[info]='green'
+colours[debug]='grey'
+colours[custom]='purple'
+colours[other]='white'
+
+declare -A colour_codes
+colour_codes[red]='30;41'
+colour_codes[green]='30;42'
+colour_codes[yellow]='30;43'
+colour_codes[blue]='30;44'
+colour_codes[purple]='30;45'
+colour_codes[teal]='30;46'
+colour_codes[grey]='30;100'
+colour_codes[white]='30;47'
+
+
+while [[ $# -gt 0 ]]; do
+  case "${1}" in
+    hour    | hr | 1h* | h ) timemask=':xx:xx' ;;
+    tenmin* | 10m*         ) timemask='x:xx' ;;
+    min     | 1m* | m      ) timemask=':xx' ;;
+    tensec* | 10s*         ) timemask='x' ;;
+    sec     | 1s* | s      ) timemask='Q' ;; # should never match
+    --case-insensitive | -i ) cs='-i' ;;
+    --width | -W ) shift; width=$1 ;;
+    --width=* | -W* ) width=$( sed 's/^-w//; s/^--width=//' <<< $1 ) ;;
+    --regex | -r ) shift; status_regex[custom]=$1 ;;
+    --regex=* | -r* ) status_regex[custom]=$( sed 's/^-r//; s/^--regex=//' <<< $1 ) ;;
+    --warn  | -w ) shift; status_regex[warn]="$1" ;;
+    --warn=* | -w* ) status_regex[warn]="$( sed 's/^-w//; s/^--warn=//' <<< $1 )" ;;
+    --help  | -h   ) 
+      echo "Usage: $(basename $0) [options] [time period] "
+      echo "       -w | --width WIDTH (default: 100)"
+      echo "       -r | --regex REGEX : a custom status to search for (overrides ERR, WARN, INFO, DEBUG, etc)"
+      echo "       -i | --case-insensitive"
+      echo "       time period:"
+      echo "         hour        : hr, 1h, 1hr, h (default)"
+      echo "         ten minutes : 10m, 10min, tenmin"
+      echo "         minute      : m, min, 1m, 1min"
+      echo "         ten seconds : 10s, 10sec, tensec"
+      echo "         second      : s, sec, 1s, 1sec"
+      exit
+      ;;
+  esac
+  shift
+done
+
+function bar () {
+  file="$1"
+  scale="$2"
+  t="$3"
+  n=$($greptool "$t" "$file" | awk '{print $1}')
+  if [[ -n $n ]]; then
+    x=$( bc <<< "$n / $scale" )
+    [[ $x -eq 0 && $n -gt 0 ]] && x=1
+    echo -en "\e[0;${colour_codes[$4]}m"
+    for((i=0;i < $x;i++)); do
+      echo -n "▁"
+    done
+    if [[ ${#n} -lt $x ]]; then 
+      echo -en "\e[${#n}D\e[1;21m$n"
+    fi
+    echo -en '\e[0m'
+  fi
+}
+
+function time_format () { 
+  # 5000 should be sufficient, and it should be safe to assume the timestamp appears in the first 100 characters
+  head -n 5000 | \
+    cut -c1-100 | \
+    $greptool -io "(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|20[012][0-9]|[0123 ][0-9]| |/|-)+[0-9][0-9](:[0-9][0-9]){2,}" | \
+    sed -E 's/[0-9]/x/g;
+            s/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/Mmm/g;
+            s/JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC/MMM/g;
+            s/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/mmm/g' | \
+    sort | uniq -c | sort -rn | head -n1 | sed 's/^ *[0-9]* *//g' # choose the most common format
+}
+
+function time_regex () {
+  sed 's/Mmm/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g;
+       s/mmm/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/g;
+       s/MMM/(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/g;
+       s/  x / [0-9 ][0-9] /g;
+       s/x/[0-9]/g' <<< "$@"
+}
+
+function b64lines () {
+IFS=''
+  while read line; do
+    if [[ $1 == '-d' ]]; then
+      base64 -d <<< "$line"
+    else
+      base64 -w0 <<< "$line"
+      echo
+    fi
+  done
+}
+
+tmplogd=$(mktemp -d /run/user/$UID/hlog.XXXXX)
+cat > $tmplogd/data
+timeformat="$(cat $tmplogd/data | time_format)"
+timeregex="$(time_regex "$(sed "s/$timemask$//" <<< "${timeformat}" )")"
+dateregex="$(time_regex "$(sed "s/$datemask$//" <<< "${timeformat}" )")"
+fullregex="$(time_regex "${timeformat}" )"
+# We're doing base64 now, because bash sucks with strings.
+cat $tmplogd/data | cut -c1-100 | $greptool -o "$dateregex" | uniq | b64lines > $tmplogd/days 
+t_begin="$(head -n1 $tmplogd/data | $greptool -o "$fullregex")"
+t_end="$(tail -n1 $tmplogd/data | $greptool -o "$fullregex")"
+#Heading
+echo -en "\n\e[0mLogs from \e[1m$t_begin\e[0m to \e[1m$t_end\e[0m.  Key:"
+for status in err warn info custom other debug; do
+  [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[${colours[$status]}]}m ${status^^} \e[0m"
+done
+echo
+# Filtering data by status
+cp $tmplogd/data $tmplogd/fdata
+for status in custom err warn info debug; do
+  echo -en "\r\e[2m Filtering ${status^^}..."
+  rgx=${status_regex[$status]}
+  if [[ -n "$rgx" ]]; then
+    $greptool $i $rgx $tmplogd/fdata | $greptool -io "$timeregex" > $tmplogd/$status &
+    $greptool -v $i $rgx $tmplogd/fdata > $tmplogd/ffdata &
+    wait
+    mv -f $tmplogd/ffdata $tmplogd/fdata
+  else
+    touch $tmplogd/$status
+  fi
+done
+mv $tmplogd/fdata $tmplogd/other
+echo -en '\e[2K\e[0m\r'
+IFS=''
+#prepare the blanks
+while read day; do
+  n="$(base64 -d <<< "$day")"
+  for((h=0;h<24;h++)); do
+    for((m=0;m<60;m++)); do
+      for((s=0;s<60;s++)); do
+        printf "%s%02d:%02d:%02d\n" "$n" $h $m $s
+      done
+    done
+  done > $tmplogd/"$day.blank"
+done < $tmplogd/days
+# strip unused periods from the blanks (before log starts, after log ends)
+firstday="$(head -n1 $tmplogd/days)"
+p_begin=$($greptool -n "$t_begin" "$tmplogd/${firstday}.blank" | cut -d: -f1)
+tail -n+${p_begin} "$tmplogd/${firstday}.blank" > "$tmplogd/firstday.blank"
+mv -f "$tmplogd/firstday.blank" "$tmplogd/${firstday}.blank"
+lastday="$(tail -n1 $tmplogd/days)"
+p_end=$($greptool -n "$t_end" "$tmplogd/${lastday}.blank" | cut -d: -f1)
+head -n${p_end} "$tmplogd/${lastday}.blank" > "$tmplogd/lastday.blank"
+mv -f "$tmplogd/lastday.blank" "$tmplogd/${lastday}.blank"
+#output blanks again
+while read day; do
+  cat $tmplogd/"${day}.blank"
+done < $tmplogd/days > $tmplogd/blank
+# do the plot
+for status in err warn info other custom debug; do
+  cat $tmplogd/${status} | $greptool -o "$timeregex" | sort | uniq -c > $tmplogd/${status}counted
+done
+cat $tmplogd/blank | $greptool -o "$timeregex" | sort | uniq > $tmplogd/blankcounted
+maxwidth=$(cat $tmplogd/data | $greptool -o "$timeregex" | sort | uniq -c | sort -rn  | head -n1 | awk '{print $1}')
+scale="$(bc <<< "scale = 3; $maxwidth / $width")"
+zeroes="$(sed 's/[0-9]/0/g' <<< "$t_begin")"
+sc=$(( ${#zeroes} + 1 ))
+while read t; do
+  echo -en "\e[1;39m\n${zeroes}\r${t}\e[${sc}G |"
+  for status in err warn info custom other debug; do
+    bar "$tmplogd/${status}counted" "$scale" "$t" "${colours[$status]}"
+  done
+done < $tmplogd/blankcounted
+# Totals
+echo -en "\n\nTotals:"
+for status in err warn info custom other debug; do
+  ttl=$(cat "$tmplogd/$status" | wc -l)
+  [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[${colours[$status]}]}m $ttl \e[0m"
+done
+echo
+echo
+rm -rf $tmplogd
