@@ -122,7 +122,13 @@ IFS=''
   done
 }
 
-tmplogd=$(mktemp -d /run/user/$UID/hlog.XXXXX)
+if [[ -d /run/user/$UID/ ]]; then
+  tmplogd=$(mktemp -d /run/user/$UID/hlog.XXXXX)
+elif [[ -d /dev/shm ]]; then
+  tmplogd=$(mktemp -d /dev/shm/hlog.XXXXX)
+else
+  tmplogd=$(mktemp -d /tmp/hlog.XXXXX)
+fi
 cat > $tmplogd/data
 timeformat="$(cat $tmplogd/data | time_format)"
 timeregex="$(time_regex "$(sed "s/$timemask$//" <<< "${timeformat}" )")"
