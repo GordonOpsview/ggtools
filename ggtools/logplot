@@ -3,26 +3,26 @@
 ## ggtool logplot
 
 declare -A status_regex
-status_regex[err]='\[(ERR|ERROR|CRITICAL|FATAL)\]'
+status_regex[error]='\[(ERR|ERROR|CRITICAL|FATAL)\]'
 status_regex[warn]='\[(WARN|WARNING)\]'
 status_regex[info]='\[(INFO|NOTICE)\]'
 status_regex[debug]='\[DEBUG\]'
 status_regex[custom]=''
 status_regex[other]='x'
 
-greptool='egrep'
-# greptool='rg'
+# greptool='egrep'
+greptool='rg'
 
 width=100
 datemask='xx:xx:xx'
 count=no
-timemask=':xx:xx' # default 1hr
+timemask='auto'
 
 i=''
 # creg='ᚢᚾᛗᚨᛏᚲᚻᚨᛒᛚᛖ' # practically unmatchable in any realistic case
 
 declare -A colours
-colours[err]='red'
+colours[error]='red'
 colours[warn]='yellow'
 colours[info]='green'
 colours[debug]='grey'
@@ -39,7 +39,11 @@ colour_codes[teal]='30;46'
 colour_codes[grey]='30;100'
 colour_codes[white]='30;47'
 
+custom_stati=( )
+expr_args=()
+logfile=''
 
+# Parse all the args
 while [[ $# -gt 0 ]]; do
   case "${1}" in
     hour    | hr | 1h* | h ) timemask=':xx:xx' ;;
@@ -48,25 +52,73 @@ while [[ $# -gt 0 ]]; do
     tensec* | 10s*         ) timemask='x' ;;
     sec     | 1s* | s      ) timemask='Q' ;; # should never match
     --case-insensitive | -i ) cs='-i' ;;
-    --width | -W ) shift; width=$1 ;;
-    --width=* | -W* ) width=$( sed 's/^-w//; s/^--width=//' <<< $1 ) ;;
-    --regex | -r ) shift; status_regex[custom]=$1 ;;
-    --regex=* | -r* ) status_regex[custom]=$( sed 's/^-r//; s/^--regex=//' <<< $1 ) ;;
-    --warn  | -w ) shift; status_regex[warn]="$1" ;;
-    --warn=* | -w* ) status_regex[warn]="$( sed 's/^-w//; s/^--warn=//' <<< $1 )" ;;
+    --width | -w ) shift; width=$1 ;;
+    --width=* | -w* ) width=$( sed 's/^-w//; s/^--width=//' <<< $1 ) ;;
+    --no-defaults | -n )
+      status_regex[error]=''
+      status_regex[warn]=''
+      status_regex[info]=''
+      status_regex[debug]=''
+    ;;
+    --status | -S )
+      shift
+      rname="${1%%=*}"
+      rvalue="${1#*=}"
+      if [[ -n "$rname" && -n "$rvalue" && -n "$(grep '^[A-Za-z0-9]*$' <<< $rname)" ]]; then
+        custom_stati=( "${custom_stati[@]}" "$rname" )
+        status_regex[$rname]="$rvalue"
+      fi
+    ;;
+    --error  | -E ) shift; status_regex[error]="(${status_regex[error]}|$1)" ;;
+    --error=* | -E* ) status_regex[error]="(${status_regex[error]}|$( sed 's/^-E//; s/^--error=//' <<< $1 ))" ;;
+    --warn  | -W ) shift; status_regex[warn]="(${status_regex[warn]}|$1)" ;;
+    --warn=* | -W* ) status_regex[warn]="(${status_regex[warn]}|$( sed 's/^-W//; s/^--warn=//' <<< $1 ))" ;;
+    --notice  | -N ) shift; status_regex[notice]="(${status_regex[notice]}|$1)" ;;
+    --notice=* | -N* ) status_regex[notice]="(${status_regex[notice]}|$( sed 's/^-N//; s/^--notice=//' <<< $1 ))" ;;
+    --debug  | -D ) shift; status_regex[debug]="(${status_regex[debug]}|$1)" ;;
+    --debug=* | -D* ) status_regex[debug]="(${status_regex[debug]}|$( sed 's/^-D//; s/^--debug=//' <<< $1 ))" ;;
+    --web ) 
+      # special case
+      status_regex[error]=''; status_regex[warn]=''; status_regex[info]='';status_regex[debug]=''
+      status_regex[500]='HTTP/1.1" 5[0-9][0-9]'; status_regex[400]='HTTP/1.1" 4[0-9][0-9]'; status_regex[200]='HTTP/1.1" 2[0-9][0-9]'; status_regex[300]='HTTP/1.1" 3[0-9][0-9]'
+      colours[500]='red'; colours[400]='yellow'; colours[200]='green'; colours[300]='teal'
+      custom_stati=( 500 400 200 300 )
+    ;;
     --help  | -h   ) 
-      echo "Usage: $(basename $0) [options] [time period] "
-      echo "       -w | --width WIDTH (default: 100)"
-      echo "       -r | --regex REGEX : a custom status to search for (overrides ERR, WARN, INFO, DEBUG, etc)"
+      echo 
+      echo "Usage: $(basename $0) [options] [time period] [log file] [expr1,expr2...] "
+      echo 
+      echo "     OPTIONS:"
+      echo "       -E | --error REGEX  : additional ERROR status regex."
+      echo "       -W | --warn REGEX   : additional WARN status regex."
+      echo "       -N | --notice REGEX : additional NOTICE status regex."
+      echo "       -D | --debug REGEX  : additional DEBUG status regex."
+      echo "       -S | --status REGEX : a custom status to search for (lines will be filtered for"
+      echo "                             this before ERROR, WARN, INFO, DEBUG, etc)."
+      echo "                             Format: [-R|--regex] name='(Y[ou]*r| |r[EG]*ex?)$' "
+      echo "                             You can specify more than one."
+      echo "       -n | --no-defaults  : Don't use the default ERROR, WARN, INFO, DEBUG status etc"
       echo "       -i | --case-insensitive"
-      echo "       time period:"
-      echo "         hour        : hr, 1h, 1hr, h (default)"
-      echo "         ten minutes : 10m, 10min, tenmin"
-      echo "         minute      : m, min, 1m, 1min"
-      echo "         ten seconds : 10s, 10sec, tensec"
-      echo "         second      : s, sec, 1s, 1sec"
+      echo "       -w | --width WIDTH  : max line width(default: 100)."
+      echo "       --web               : Special case: Uses status values for HTTP return codes."
+      echo "     TIME PERIOD: Size on time divisions. If not supplied, $(basename $0) will guess."
+      echo "       hour        : hr, 1h, 1hr, h"
+      echo "       ten minutes : 10m, 10min, tenmin"
+      echo "       minute      : m, min, 1m, 1min"
+      echo "       ten seconds : 10s, 10sec, tensec"
+      echo "       second      : s, sec, 1s, 1sec"
+      echo "     LOG FILE: Can be gzip compressed. If not specified, $(basename $0) will read from STDIN."
+      echo "     EXPRESSIONS: Any arguments after the normal options will be used as regexes to grep the input."
+      echo 
       exit
-      ;;
+    ;;
+    * )
+      if [[ -f "$1" ]]; then
+        logfile="$1" 
+      else
+        expr_args=( "${expr_args[@]}" "$1" )
+      fi
+    ;;  
   esac
   shift
 done
@@ -110,6 +162,25 @@ function time_regex () {
        s/x/[0-9]/g' <<< "$@"
 }
 
+function statuscolour () {
+  # status="$1"
+  if [[ " ${!colours[@]} " == *" $1 "* ]]; then
+    echo "${colours[$1]}"
+  else
+    touch $tmplogd/colour
+    if [[ $(cat $tmplogd/colour) == "blue" ]]; then
+      echo "blue"
+      echo "teal" > $tmplogd/colour
+    elif [[ $(cat $tmplogd/colour) == "teal" ]]; then
+      echo "teal"
+      echo "purple" > $tmplogd/colour
+    else
+      echo "purple"
+      echo "blue" > $tmplogd/colour
+    fi
+  fi
+}
+
 function b64lines () {
 IFS=''
   while read line; do
@@ -122,14 +193,21 @@ IFS=''
   done
 }
 
-if [[ -d /run/user/$UID/ ]]; then
-  tmplogd=$(mktemp -d /run/user/$UID/hlog.XXXXX)
-elif [[ -d /dev/shm ]]; then
-  tmplogd=$(mktemp -d /dev/shm/hlog.XXXXX)
-else
-  tmplogd=$(mktemp -d /tmp/hlog.XXXXX)
-fi
-cat > $tmplogd/data
+function re_fltr () {
+  if [[ $# -gt 0 ]]; then
+    t="$1"
+    shift
+    cat | $greptool "$t" | re_fltr "$@"
+  else
+    cat
+  fi
+}
+
+tmplogd="$(mktemp -d "$(for i in /run/user/$UID/ /dev/shm/ /tmp/ ; do if [[ -d "$i" && -w "$i" ]]; then echo "$i"; break; fi; done)"/hlog.XXXXX)"
+
+zcat -f $logfile | re_fltr "${expr_args[@]}" > $tmplogd/data
+
+# figure out time format
 timeformat="$(cat $tmplogd/data | time_format)"
 timeregex="$(time_regex "$(sed "s/$timemask$//" <<< "${timeformat}" )")"
 dateregex="$(time_regex "$(sed "s/$datemask$//" <<< "${timeformat}" )")"
@@ -138,29 +216,8 @@ fullregex="$(time_regex "${timeformat}" )"
 cat $tmplogd/data | cut -c1-100 | $greptool -o "$dateregex" | uniq | b64lines > $tmplogd/days 
 t_begin="$(head -n1 $tmplogd/data | $greptool -o "$fullregex")"
 t_end="$(tail -n1 $tmplogd/data | $greptool -o "$fullregex")"
-#Heading
-echo -en "\n\e[0mLogs from \e[1m$t_begin\e[0m to \e[1m$t_end\e[0m.  Key:"
-for status in err warn info custom other debug; do
-  [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[${colours[$status]}]}m ${status^^} \e[0m"
-done
-echo
-# Filtering data by status
-cp $tmplogd/data $tmplogd/fdata
-for status in custom err warn info debug; do
-  echo -en "\r\e[2m Filtering ${status^^}..."
-  rgx=${status_regex[$status]}
-  if [[ -n "$rgx" ]]; then
-    $greptool $i $rgx $tmplogd/fdata | $greptool -io "$timeregex" > $tmplogd/$status &
-    $greptool -v $i $rgx $tmplogd/fdata > $tmplogd/ffdata &
-    wait
-    mv -f $tmplogd/ffdata $tmplogd/fdata
-  else
-    touch $tmplogd/$status
-  fi
-done
-mv $tmplogd/fdata $tmplogd/other
-echo -en '\e[2K\e[0m\r'
-IFS=''
+stati=( error warn info "${custom_stati[@]}" other debug )
+
 #prepare the blanks
 while read day; do
   n="$(base64 -d <<< "$day")"
@@ -185,26 +242,67 @@ mv -f "$tmplogd/lastday.blank" "$tmplogd/${lastday}.blank"
 while read day; do
   cat $tmplogd/"${day}.blank"
 done < $tmplogd/days > $tmplogd/blank
+
+# Work out time period if none is supplied
+if [[ "$timemask" == 'auto' ]]; then
+  for guessmask in {':xx:xx','x:xx',':xx','x','Q'}; do
+    guessregex="$(time_regex "$(sed "s/$guessmask$//" <<< "${timeformat}" )" )"
+    if [[ $(cat $tmplogd/blank | $greptool -o "$guessregex" | sort -u | wc -l ) -gt 10 ]]; then
+      timeregex="$guessregex"
+      break
+    fi
+  done
+fi
+
+#Heading
+echo -en "\n\e[0mLogs from \e[1m$t_begin\e[0m to \e[1m$t_end\e[0m.  Key:"
+echo 'badger' > $tmplogd/colour #reset 
+for status in "${stati[@]}"; do
+  [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[$(statuscolour $status)]}m ${status^^} \e[0m"
+done
+echo
+
+# Filtering data by status
+cp $tmplogd/data $tmplogd/fdata
+for status in "${custom_stati[@]}" error warn info debug; do
+  echo -en "\r\e[2m Filtering ${status^^}..."
+  rgx="${status_regex[$status]}"
+  if [[ -n "$rgx" ]]; then
+    $greptool $i "$rgx" $tmplogd/fdata | $greptool -io "$timeregex" > $tmplogd/$status &
+    $greptool -v $i "$rgx" $tmplogd/fdata > $tmplogd/ffdata &
+    wait
+    mv -f $tmplogd/ffdata $tmplogd/fdata
+  else
+    touch $tmplogd/$status
+  fi
+done
+mv $tmplogd/fdata $tmplogd/other
+echo -en '\e[2K\e[0m\r'
+IFS=''
+
 # do the plot
-for status in err warn info other custom debug; do
+for status in "${stati[@]}"; do
   cat $tmplogd/${status} | $greptool -o "$timeregex" | sort | uniq -c > $tmplogd/${status}counted
 done
-cat $tmplogd/blank | $greptool -o "$timeregex" | sort | uniq > $tmplogd/blankcounted
+cat $tmplogd/blank | $greptool -o "$timeregex" | sort -u > $tmplogd/blankcounted
 maxwidth=$(cat $tmplogd/data | $greptool -o "$timeregex" | sort | uniq -c | sort -rn  | head -n1 | awk '{print $1}')
 scale="$(bc <<< "scale = 3; $maxwidth / $width")"
 zeroes="$(sed 's/[0-9]/0/g' <<< "$t_begin")"
 sc=$(( ${#zeroes} + 1 ))
 while read t; do
   echo -en "\e[1;39m\n${zeroes}\r${t}\e[${sc}G |"
-  for status in err warn info custom other debug; do
-    bar "$tmplogd/${status}counted" "$scale" "$t" "${colours[$status]}"
+  echo 'badger' > $tmplogd/colour #reset 
+  for status in "${stati[@]}"; do
+    bar "$tmplogd/${status}counted" "$scale" "$t" "$(statuscolour $status)"
   done
 done < $tmplogd/blankcounted
+
 # Totals
 echo -en "\n\nTotals:"
-for status in err warn info custom other debug; do
+echo 'badger' > $tmplogd/colour #reset 
+for status in "${stati[@]}"; do
   ttl=$(cat "$tmplogd/$status" | wc -l)
-  [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[${colours[$status]}]}m $ttl \e[0m"
+  [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[$(statuscolour $status)]}m $ttl \e[0m"
 done
 echo
 echo
