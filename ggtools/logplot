@@ -2,6 +2,8 @@
 
 ## ggtool logplot
 
+[[ -x $(which 'rg') ]] && greptool='rg' || greptool='egrep' #          rg = ripgrep. See https://github.com/BurntSushi/ripgrep
+
 declare -A status_regex
 status_regex[error]='\[(ERR|ERROR|CRITICAL|FATAL)\]'
 status_regex[warn]='\[(WARN|WARNING)\]'
@@ -10,16 +12,10 @@ status_regex[debug]='\[DEBUG\]'
 status_regex[custom]=''
 status_regex[other]='x'
 
-# greptool='egrep'
-greptool='rg'
-
 width=100
 datemask='xx:xx:xx'
 count=no
 timemask='auto'
-
-i=''
-# creg='ᚢᚾᛗᚨᛏᚲᚻᚨᛒᛚᛖ' # practically unmatchable in any realistic case
 
 declare -A colours
 colours[error]='red'
@@ -42,6 +38,7 @@ colour_codes[white]='30;47'
 custom_stati=( )
 expr_args=()
 logfile=''
+i=''
 
 # Parse all the args
 while [[ $# -gt 0 ]]; do
@@ -50,7 +47,7 @@ while [[ $# -gt 0 ]]; do
     tenmin* | 10m*         ) timemask='x:xx' ;;
     min     | 1m* | m      ) timemask=':xx' ;;
     tensec* | 10s*         ) timemask='x' ;;
-    sec     | 1s* | s      ) timemask='Q' ;; # should never match
+    sec     | 1s* | s      ) timemask='🦡' ;; # should never match
     --case-insensitive | -i ) cs='-i' ;;
     --width | -w ) shift; width=$1 ;;
     --width=* | -w* ) width=$( sed 's/^-w//; s/^--width=//' <<< $1 ) ;;
@@ -86,22 +83,22 @@ while [[ $# -gt 0 ]]; do
     ;;
     --help  | -h   ) 
       echo 
-      echo "Usage: $(basename $0) [options] [time period] [log file] [expr1,expr2...] "
+      echo "Usage: $(basename $0) [options] [interval] [log file] [expr1,expr2...] "
       echo 
       echo "     OPTIONS:"
       echo "       -E | --error REGEX  : additional ERROR status regex."
       echo "       -W | --warn REGEX   : additional WARN status regex."
       echo "       -N | --notice REGEX : additional NOTICE status regex."
       echo "       -D | --debug REGEX  : additional DEBUG status regex."
-      echo "       -S | --status REGEX : a custom status to search for (lines will be filtered for"
-      echo "                             this before ERROR, WARN, INFO, DEBUG, etc)."
-      echo "                             Format: [-R|--regex] name='(Y[ou]*r| |r[EG]*ex?)$' "
+      echo "       -S | --status REGEX : a custom status to search for (lines will be filtered for this "
+      echo "                             before ERROR, WARN, INFO, DEBUG, etc)."
+      echo "                             Format: --status name='regex'"
       echo "                             You can specify more than one."
-      echo "       -n | --no-defaults  : Don't use the default ERROR, WARN, INFO, DEBUG status etc"
+      echo "       -n | --no-defaults  : Don't use the default ERROR, WARN, INFO, DEBUG status etc. (Faster)"
       echo "       -i | --case-insensitive"
-      echo "       -w | --width WIDTH  : max line width(default: 100)."
-      echo "       --web               : Special case: Uses status values for HTTP return codes."
-      echo "     TIME PERIOD: Size on time divisions. If not supplied, $(basename $0) will guess."
+      echo "       -w | --width WIDTH  : max line width (default: 100)."
+      echo "       --web               : Special case: Uses HTTP return codes for status values."
+      echo "     INTERVAL: Size on time divisions. If not supplied, $(basename $0) will guess."
       echo "       hour        : hr, 1h, 1hr, h"
       echo "       ten minutes : 10m, 10min, tenmin"
       echo "       minute      : m, min, 1m, 1min"
@@ -142,24 +139,20 @@ function bar () {
   fi
 }
 
+Months='Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec'
+MONTHS='JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC'
+months='jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec'
+
 function time_format () { 
   # 5000 should be sufficient, and it should be safe to assume the timestamp appears in the first 100 characters
-  head -n 5000 | \
-    cut -c1-100 | \
-    $greptool -io "(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|20[012][0-9]|[0123 ][0-9]| |/|-)+[0-9][0-9](:[0-9][0-9]){2,}" | \
-    sed -E 's/[0-9]/x/g;
-            s/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/Mmm/g;
-            s/JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC/MMM/g;
-            s/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/mmm/g' | \
+  head -n 5000 | cut -c1-100 | \
+    $greptool -io "($Months|20[012][0-9]|[0123 ][0-9]| |/|-)+[0-9][0-9](:[0-9][0-9]){2,}" | \
+    sed -E "s/[0-9]/x/g; s/$Months/Mmm/g; s/$MONTHS/MMM/g; s/$months/mmm/g" | \
     sort | uniq -c | sort -rn | head -n1 | sed 's/^ *[0-9]* *//g' # choose the most common format
 }
 
 function time_regex () {
-  sed 's/Mmm/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g;
-       s/mmm/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/g;
-       s/MMM/(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/g;
-       s/  x / [0-9 ][0-9] /g;
-       s/x/[0-9]/g' <<< "$@"
+  sed "s/Mmm/($Months)/g; s/MMM/($MONTHS)/g; s/mmm/($months)/g; s/  x / [0-9 ][0-9] /g; s/x/[0-9]/g" <<< "$@"
 }
 
 function statuscolour () {
@@ -204,6 +197,7 @@ function re_fltr () {
 }
 
 tmplogd="$(mktemp -d "$(for i in /run/user/$UID/ /dev/shm/ /tmp/ ; do if [[ -d "$i" && -w "$i" ]]; then echo "$i"; break; fi; done)"/hlog.XXXXX)"
+stati=( error warn info "${custom_stati[@]}" other debug )
 
 zcat -f $logfile | re_fltr "${expr_args[@]}" > $tmplogd/data
 
@@ -216,7 +210,6 @@ fullregex="$(time_regex "${timeformat}" )"
 cat $tmplogd/data | cut -c1-100 | $greptool -o "$dateregex" | uniq | b64lines > $tmplogd/days 
 t_begin="$(head -n1 $tmplogd/data | $greptool -o "$fullregex")"
 t_end="$(tail -n1 $tmplogd/data | $greptool -o "$fullregex")"
-stati=( error warn info "${custom_stati[@]}" other debug )
 
 #prepare the blanks
 while read day; do
@@ -245,7 +238,7 @@ done < $tmplogd/days > $tmplogd/blank
 
 # Work out time period if none is supplied
 if [[ "$timemask" == 'auto' ]]; then
-  for guessmask in {':xx:xx','x:xx',':xx','x','Q'}; do
+  for guessmask in {':xx:xx','x:xx',':xx','x','🦡'}; do
     guessregex="$(time_regex "$(sed "s/$guessmask$//" <<< "${timeformat}" )" )"
     if [[ $(cat $tmplogd/blank | $greptool -o "$guessregex" | sort -u | wc -l ) -gt 10 ]]; then
       timeregex="$guessregex"
@@ -256,7 +249,7 @@ fi
 
 #Heading
 echo -en "\n\e[0mLogs from \e[1m$t_begin\e[0m to \e[1m$t_end\e[0m.  Key:"
-echo 'badger' > $tmplogd/colour #reset 
+echo '🦡' > $tmplogd/colour #reset 
 for status in "${stati[@]}"; do
   [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[$(statuscolour $status)]}m ${status^^} \e[0m"
 done
@@ -291,7 +284,7 @@ zeroes="$(sed 's/[0-9]/0/g' <<< "$t_begin")"
 sc=$(( ${#zeroes} + 1 ))
 while read t; do
   echo -en "\e[1;39m\n${zeroes}\r${t}\e[${sc}G |"
-  echo 'badger' > $tmplogd/colour #reset 
+  echo '🦡' > $tmplogd/colour #reset 
   for status in "${stati[@]}"; do
     bar "$tmplogd/${status}counted" "$scale" "$t" "$(statuscolour $status)"
   done
@@ -299,7 +292,7 @@ done < $tmplogd/blankcounted
 
 # Totals
 echo -en "\n\nTotals:"
-echo 'badger' > $tmplogd/colour #reset 
+echo '🦡' > $tmplogd/colour #reset 
 for status in "${stati[@]}"; do
   ttl=$(cat "$tmplogd/$status" | wc -l)
   [[ -n "${status_regex[$status]}" ]] && echo -en " \e[${colour_codes[$(statuscolour $status)]}m $ttl \e[0m"
