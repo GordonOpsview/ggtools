@@ -15,18 +15,33 @@ function tint () {
           '
 }
 
-function filter () { 
-  case "${1}" in
-    1 ) grep -Ev 'n=ansible \| included: ' | grep -Ev 'n=ansible \| Using module file' ;;
-    2 ) grep -Ev 'n=ansible \| <[0-9.]*[0-9]>' | grep -Ev 'n=ansible \| Pipelining is enabled.' | grep -Ev 'n=ansible \| Escalation succeeded' | filter 1 ;;
-    3) grep -E 'n=ansible \|' | filter 2 ;;
-  esac
+# function filter () { 
+#   case "${1}" in
+#     1 ) grep -Ev 'n=ansible \| included: ' | grep -Ev 'n=ansible \| Using module file' ;;
+#     2 ) grep -Ev 'n=ansible \| <[0-9.]*[0-9]>' | grep -Ev 'n=ansible \| Pipelining is enabled.' | grep -Ev 'n=ansible \| Escalation succeeded' | filter 1 ;;
+#     3) grep -E 'n=ansible \|' | filter 2 ;;
+#   esac
+# }
+
+function usage () {
+  echo -e "\nUsage: ansiblog [file]\n   File is an ansible log file (generally named ansible-[date]-[time].log)\n   If no file is supplied, ansiblog reads from stdin.\n"
 }
 
+
 case "${1}" in
-  -sss | summary3 ) filter 3 | tint ;;
-  -ss | summary2 ) filter 2 | tint ;;
-  -s | summary ) filter 1 | tint ;;
-  -h | 
-  * ) tint ;;
+  # -sss | summary3 ) filter 3 | tint ;;
+  # -ss | summary2 ) filter 2 | tint ;;
+  # -s | summary ) filter 1 | tint ;;
+  -h | --help ) usage ;;
+  * ) 
+    if [[ -t 0 ]]; then
+      if [[ -e $1 ]]; then
+        cat $1 | tint
+      else
+        usage
+      fi
+    else
+      tint
+    fi
+  ;;
 esac
