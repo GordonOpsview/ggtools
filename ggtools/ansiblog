@@ -8,7 +8,7 @@ function tint () {
           s/(ok: \[)/'$'\e''[32m\1/g;
           s/(skipping: \[)/'$'\e''[36m\1/g;
           s/(changed: \[)/'$'\e''[33m\1/g;
-          s/(fatal: \[)/'$'\e''[1;91m\1/g;
+          s/(fatal: \[|\[ERROR\])/'$'\e''[1;91m\1/g;
           s/(<[0-9.]*[0-9]>)/'$'\e''[2;34m\1/g;
           s/(TASK.*\*\*\*\*$)/'$'\e''[1;35m\1/g;
           s/(PLAY.*\*\*\*\*$)/'$'\e''[1;95m\1/g;
@@ -27,5 +27,6 @@ case "${1}" in
   -sss | summary3 ) filter 3 | tint ;;
   -ss | summary2 ) filter 2 | tint ;;
   -s | summary ) filter 1 | tint ;;
+  -h | 
   * ) tint ;;
 esac
